@@ -8,4 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY reviewer/ ./reviewer/
 COPY .reviewer.yaml .
 
+ENV PYTHONPATH=/app
+
 ENTRYPOINT ["python", "-m", "reviewer.main"]
