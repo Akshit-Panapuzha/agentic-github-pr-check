@@ -1,0 +1,17 @@
+reviewer:
+  reviewer_mode: default
+  confidence_threshold: 0.65
+  rerun_threshold: 0.50
+  max_reruns: 1
+  max_comments_per_pr: 10
+  severity_filter: [critical, high, medium]
+  context_window_lines: 20
+  token_budget_per_file: 5000
+  ignore_paths:
+    - "tests/"
+    - "docs/"
+  security:
+    check_dependencies: true
+    secret_patterns: []
+  quality:
+    max_complexity: 10

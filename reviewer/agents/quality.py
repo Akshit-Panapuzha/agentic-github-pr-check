@@ -1,0 +1,55 @@
+import json
+from pathlib import Path
+from typing import List
+
+from openai import AsyncOpenAI
+
+from reviewer.config import ReviewerConfig
+from reviewer.models import Finding
+
+_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "quality.txt"
+
+
+def _load_prompt() -> str:
+    return _PROMPT_PATH.read_text()
+
+
+async def run_quality_agent(
+    client: AsyncOpenAI,
+    filename: str,
+    context: str,
+    complexity_summary: str,
+    config: ReviewerConfig,
+) -> List[Finding]:
+    model = "gpt-4o" if config.reviewer_mode == "production" else "gpt-4o-mini"
+    system_prompt = _load_prompt()
+    user_message = f"File: {filename}\n\n{complexity_summary}\n\nCode:\n{context}"
+
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+        )
+        raw = json.loads(response.choices[0].message.content)
+        findings_data = raw.get("findings", [])
+    except Exception:
+        return []
+
+    return [
+        Finding(
+            filename=d.get("filename", filename),
+            line_number=int(d.get("line_number", 0)),
+            agent="quality",
+            severity=d.get("severity", "low"),
+            title=d.get("title", ""),
+            explanation=d.get("explanation", ""),
+            suggestion=d.get("suggestion", ""),
+        )
+        for d in findings_data
+        if isinstance(d, dict)
+    ]

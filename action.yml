@@ -1,0 +1,24 @@
+name: 'AI Code Reviewer'
+description: 'Autonomous PR code review using OpenAI. Configurable via .reviewer.yaml.'
+branding:
+  icon: 'eye'
+  color: 'blue'
+inputs:
+  openai-api-key:
+    description: 'OpenAI API key'
+    required: true
+  reviewer-mode:
+    description: '"default" (gpt-4o-mini, cheapest) or "production" (gpt-4o for analysis agents)'
+    required: false
+    default: 'default'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+    REVIEWER_MODE: ${{ inputs.reviewer-mode }}
+    GITHUB_TOKEN: ${{ github.token }}
+    PR_NUMBER: ${{ github.event.pull_request.number }}
+    REPO: ${{ github.repository }}
+    BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    HEAD_SHA: ${{ github.event.pull_request.head.sha }}
