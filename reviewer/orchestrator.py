@@ -99,6 +99,7 @@ async def run_pipeline(
 
     for f in pr_files:
         if should_skip_file(f.filename, config):
+            print(f"[orchestrator] Skipping {f.filename}")
             continue
         try:
             file_content = repo.get_contents(f.filename, ref=head_sha).decoded_content.decode("utf-8")
@@ -107,6 +108,7 @@ async def run_pipeline(
             continue
 
         language = detect_language(f.filename, config) or "python"
+        print(f"[orchestrator] Queuing {f.filename} (language={language})")
         file_tasks.append(
             _analyze_file(client, f.filename, f.patch or "", file_content, config, skipped_files, language)
         )
