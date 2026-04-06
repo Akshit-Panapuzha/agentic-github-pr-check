@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 
 from github import Github
 
@@ -9,7 +10,7 @@ from reviewer.orchestrator import run_pipeline
 from reviewer.synthesizer import build_summary_body, synthesize
 
 
-async def main() -> None:
+async def main() -> int:
     pr_number = int(os.environ["PR_NUMBER"])
     repo_name = os.environ["REPO"]
     base_sha = os.environ["BASE_SHA"]
@@ -38,6 +39,11 @@ async def main() -> None:
     post_review(repo, pr, head_sha, inline, summary)
     print("[reviewer] Review posted successfully.")
 
+    if inline:
+        print(f"[reviewer] Exiting with code 1 — {len(inline)} issue(s) found.")
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))
