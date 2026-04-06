@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import List
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError, APITimeoutError
 
 from reviewer.config import ReviewerConfig
 from reviewer.models import Finding
@@ -67,37 +67,45 @@ async def run_security_agent(
     system_prompt = _load_prompt(language)
     user_message = f"File: {filename}\n\nCode:\n{context}"
 
-    llm_findings = []
-    try:
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0,
-        )
-        raw_content = response.choices[0].message.content
-        print(f"[security] {filename}: raw response: {raw_content[:300]}")
-        raw = json.loads(raw_content)
-        findings_data = raw.get("findings", [])
-        print(f"[security] {filename}: {len(findings_data)} findings")
-        llm_findings = [
-            Finding(
-                filename=d.get("filename", filename),
-                line_number=int(d.get("line_number", 0)),
-                agent="security",
-                severity=d.get("severity", "low"),
-                title=d.get("title", ""),
-                explanation=d.get("explanation", ""),
-                suggestion=d.get("suggestion", ""),
+    findings_data = []
+    for attempt in range(3):
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
             )
-            for d in findings_data
-            if isinstance(d, dict)
-        ]
-    except Exception as e:
-        print(f"[security] {filename}: ERROR — {e}")
+            raw_content = response.choices[0].message.content
+            print(f"[security] {filename}: raw response: {raw_content[:300]}")
+            raw = json.loads(raw_content)
+            findings_data = raw.get("findings", [])
+            print(f"[security] {filename}: {len(findings_data)} findings")
+            break
+        except (RateLimitError, APITimeoutError) as e:
+            wait = 2 ** attempt
+            print(f"[security] {filename}: rate limit/timeout (attempt {attempt+1}), retrying in {wait}s — {e}")
+            await asyncio.sleep(wait)
+        except Exception as e:
+            print(f"[security] {filename}: ERROR — {e}")
+            break
+
+    llm_findings = [
+        Finding(
+            filename=d.get("filename", filename),
+            line_number=int(d.get("line_number", 0)),
+            agent="security",
+            severity=d.get("severity", "low"),
+            title=d.get("title", ""),
+            explanation=d.get("explanation", ""),
+            suggestion=d.get("suggestion", ""),
+        )
+        for d in findings_data
+        if isinstance(d, dict)
+    ]
 
     dep_files = {"requirements.txt", "pyproject.toml"} | {f for f in [filename] if f.endswith(".csproj")}
     dep_findings = []
