@@ -26,9 +26,17 @@ def parse_pyproject_deps(content: str) -> List[Tuple[str, str]]:
     return packages
 
 
-async def check_package_vulnerabilities(package: str, version: str) -> List[dict]:
+def parse_csproj_deps(content: str) -> List[Tuple[str, str]]:
+    packages = []
+    pattern = re.compile(r'<PackageReference\s+Include="([^"]+)"\s+Version="([^"]+)"', re.IGNORECASE)
+    for match in pattern.finditer(content):
+        packages.append((match.group(1), match.group(2)))
+    return packages
+
+
+async def check_package_vulnerabilities(package: str, version: str, ecosystem: str = "PyPI") -> List[dict]:
     payload = {
-        "package": {"name": package, "ecosystem": "PyPI"},
+        "package": {"name": package, "ecosystem": ecosystem},
         "version": version,
     }
     async with httpx.AsyncClient(timeout=10.0) as client:

@@ -9,23 +9,32 @@ from reviewer.config import ReviewerConfig
 from reviewer.models import Finding
 from reviewer.osv_client import check_package_vulnerabilities, parse_pyproject_deps, parse_requirements
 
-_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "security.txt"
+_PROMPT_PATHS = {
+    "python": Path(__file__).parent.parent / "prompts" / "security.txt",
+    "csharp": Path(__file__).parent.parent / "prompts" / "security_csharp.txt",
+}
 
 
-def _load_prompt() -> str:
-    return _PROMPT_PATH.read_text()
+def _load_prompt(language: str) -> str:
+    path = _PROMPT_PATHS.get(language, _PROMPT_PATHS["python"])
+    return path.read_text()
 
 
-async def _check_dependencies(filename: str, content: str) -> List[Finding]:
+async def _check_dependencies(filename: str, content: str, language: str = "python") -> List[Finding]:
     findings = []
+    ecosystem = "NuGet" if language == "csharp" else "PyPI"
+
     if filename == "requirements.txt":
         packages = parse_requirements(content)
     elif filename == "pyproject.toml":
         packages = parse_pyproject_deps(content)
+    elif filename.endswith(".csproj"):
+        from reviewer.osv_client import parse_csproj_deps
+        packages = parse_csproj_deps(content)
     else:
         return []
 
-    tasks = [check_package_vulnerabilities(name, version) for name, version in packages]
+    tasks = [check_package_vulnerabilities(name, version, ecosystem) for name, version in packages]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for (name, version), vulns in zip(packages, results):
@@ -52,9 +61,10 @@ async def run_security_agent(
     context: str,
     patch: str,
     config: ReviewerConfig,
+    language: str = "python",
 ) -> List[Finding]:
     model = "gpt-4o" if config.reviewer_mode == "production" else "gpt-4o-mini"
-    system_prompt = _load_prompt()
+    system_prompt = _load_prompt(language)
     user_message = f"File: {filename}\n\nCode:\n{context}"
 
     llm_findings = []
@@ -86,8 +96,9 @@ async def run_security_agent(
     except Exception:
         pass
 
+    dep_files = {"requirements.txt", "pyproject.toml"} | {f for f in [filename] if f.endswith(".csproj")}
     dep_findings = []
-    if config.security.check_dependencies and filename in ("requirements.txt", "pyproject.toml"):
-        dep_findings = await _check_dependencies(filename, patch)
+    if config.security.check_dependencies and filename in dep_files:
+        dep_findings = await _check_dependencies(filename, patch, language)
 
     return llm_findings + dep_findings

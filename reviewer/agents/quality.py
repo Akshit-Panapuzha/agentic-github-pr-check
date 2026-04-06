@@ -7,11 +7,15 @@ from openai import AsyncOpenAI
 from reviewer.config import ReviewerConfig
 from reviewer.models import Finding
 
-_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "quality.txt"
+_PROMPT_PATHS = {
+    "python": Path(__file__).parent.parent / "prompts" / "quality.txt",
+    "csharp": Path(__file__).parent.parent / "prompts" / "quality_csharp.txt",
+}
 
 
-def _load_prompt() -> str:
-    return _PROMPT_PATH.read_text()
+def _load_prompt(language: str) -> str:
+    path = _PROMPT_PATHS.get(language, _PROMPT_PATHS["python"])
+    return path.read_text()
 
 
 async def run_quality_agent(
@@ -20,9 +24,10 @@ async def run_quality_agent(
     context: str,
     complexity_summary: str,
     config: ReviewerConfig,
+    language: str = "python",
 ) -> List[Finding]:
     model = "gpt-4o" if config.reviewer_mode == "production" else "gpt-4o-mini"
-    system_prompt = _load_prompt()
+    system_prompt = _load_prompt(language)
     user_message = f"File: {filename}\n\n{complexity_summary}\n\nCode:\n{context}"
 
     try:

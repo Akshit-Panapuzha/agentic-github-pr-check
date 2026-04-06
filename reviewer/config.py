@@ -27,6 +27,7 @@ class ReviewerConfig:
     context_window_lines: int = 20
     token_budget_per_file: int = 5000
     ignore_paths: List[str] = field(default_factory=list)
+    languages: List[str] = field(default_factory=lambda: ["python"])
     security: SecurityConfig = field(default_factory=SecurityConfig)
     quality: QualityConfig = field(default_factory=QualityConfig)
 
@@ -55,6 +56,7 @@ def load_config(path: str = ".reviewer.yaml") -> ReviewerConfig:
         context_window_lines=raw.get("context_window_lines", 20),
         token_budget_per_file=raw.get("token_budget_per_file", 5000),
         ignore_paths=raw.get("ignore_paths", []),
+        languages=raw.get("languages", ["python"]),
         security=SecurityConfig(
             check_dependencies=security_raw.get("check_dependencies", True),
             secret_patterns=security_raw.get("secret_patterns", []),

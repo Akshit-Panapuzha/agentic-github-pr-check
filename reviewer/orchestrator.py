@@ -10,7 +10,7 @@ from reviewer.agents.quality import run_quality_agent
 from reviewer.agents.security import run_security_agent
 from reviewer.config import ReviewerConfig
 from reviewer.embeddings import chunk_file_content, rank_chunks_by_relevance
-from reviewer.github_client import should_skip_file
+from reviewer.github_client import detect_language, should_skip_file
 from reviewer.models import Finding
 
 
@@ -58,16 +58,17 @@ async def _analyze_file(
     file_content: str,
     config: ReviewerConfig,
     skipped: list,
+    language: str = "python",
 ) -> List[Finding]:
     context = await build_file_context(client, filename, patch, file_content, config)
     if context is None:
         skipped.append(filename)
         return []
 
-    complexity_summary = compute_complexity(file_content)
+    complexity_summary = compute_complexity(file_content) if language == "python" else "Complexity scoring: N/A (non-Python file)"
 
-    quality_task = run_quality_agent(client, filename, context, complexity_summary, config)
-    security_task = run_security_agent(client, filename, context, patch, config)
+    quality_task = run_quality_agent(client, filename, context, complexity_summary, config, language)
+    security_task = run_security_agent(client, filename, context, patch, config, language)
 
     results = await asyncio.gather(quality_task, security_task, return_exceptions=True)
 
@@ -105,8 +106,9 @@ async def run_pipeline(
             skipped_files.append(f.filename)
             continue
 
+        language = detect_language(f.filename, config) or "python"
         file_tasks.append(
-            _analyze_file(client, f.filename, f.patch or "", file_content, config, skipped_files)
+            _analyze_file(client, f.filename, f.patch or "", file_content, config, skipped_files, language)
         )
 
     results = await asyncio.gather(*file_tasks, return_exceptions=True)

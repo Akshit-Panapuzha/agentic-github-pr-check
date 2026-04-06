@@ -28,15 +28,35 @@ def parse_added_lines(patch: str) -> Dict[int, str]:
     return added
 
 
+_LANGUAGE_EXTENSIONS = {
+    "python": {".py"},
+    "csharp": {".cs", ".csproj"},
+}
+
+_DEPENDENCY_FILES = {
+    "python": {"requirements.txt", "pyproject.toml"},
+    "csharp": set(),
+}
+
+
+def detect_language(filename: str, config: ReviewerConfig) -> str | None:
+    """Return the language for a file, or None if it should be skipped."""
+    basename = os.path.basename(filename)
+    _, ext = os.path.splitext(filename)
+
+    for lang in config.languages:
+        if basename in _DEPENDENCY_FILES.get(lang, set()):
+            return lang
+        if ext in _LANGUAGE_EXTENSIONS.get(lang, set()):
+            return lang
+    return None
+
+
 def should_skip_file(filename: str, config: ReviewerConfig) -> bool:
     for pattern in config.ignore_paths:
         if filename.startswith(pattern) or fnmatch.fnmatch(filename, pattern):
             return True
-    allowed_names = {"requirements.txt", "pyproject.toml"}
-    if os.path.basename(filename) in allowed_names:
-        return False
-    _, ext = os.path.splitext(filename)
-    return ext not in {".py"}
+    return detect_language(filename, config) is None
 
 
 def post_review(
