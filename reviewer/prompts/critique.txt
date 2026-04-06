@@ -23,5 +23,11 @@ Scoring guide:
 - 0.3-0.5: Probably a false positive or a matter of style preference
 - 0.0-0.3: Almost certainly a false positive or irrelevant noise
 
+Severity bias rules — apply these before general scoring:
+- severity=critical: start at 0.85 and only adjust down if you have a specific reason to doubt it
+- Syntax errors (missing semicolons, invalid declarations, incomplete statements): always score >= 0.85 — these are deterministic compiler errors, not matters of opinion
+- Naming convention violations: score 0.70-0.85 — these are objective style rules
+- Vulnerable dependency findings: always score >= 0.85
+
 You MUST return a score for every finding in the input. Do not skip any.
 When in doubt, score lower rather than higher — false positives erode trust.

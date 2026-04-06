@@ -39,8 +39,8 @@ async def main() -> int:
     post_review(repo, pr, head_sha, inline, summary)
     print("[reviewer] Review posted successfully.")
 
-    if inline:
-        print(f"[reviewer] Exiting with code 1 — {len(inline)} issue(s) found.")
+    if findings:
+        print(f"[reviewer] Exiting with code 1 — {len(findings)} issue(s) found.")
         return 1
     return 0
 

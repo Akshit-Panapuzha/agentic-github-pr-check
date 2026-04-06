@@ -19,7 +19,7 @@ class QualityConfig:
 @dataclass
 class ReviewerConfig:
     reviewer_mode: str = "default"
-    confidence_threshold: float = 0.65
+    confidence_threshold: float = 0.60
     rerun_threshold: float = 0.50
     max_reruns: int = 1
     max_comments_per_pr: int = 10
@@ -48,7 +48,7 @@ def load_config(path: str = ".reviewer.yaml") -> ReviewerConfig:
 
     config = ReviewerConfig(
         reviewer_mode=raw.get("reviewer_mode", "default"),
-        confidence_threshold=raw.get("confidence_threshold", 0.65),
+        confidence_threshold=raw.get("confidence_threshold", 0.60),
         rerun_threshold=raw.get("rerun_threshold", 0.50),
         max_reruns=raw.get("max_reruns", 1),
         max_comments_per_pr=raw.get("max_comments_per_pr", 10),
