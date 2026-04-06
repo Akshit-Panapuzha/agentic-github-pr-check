@@ -40,9 +40,13 @@ async def run_quality_agent(
             response_format={"type": "json_object"},
             temperature=0,
         )
-        raw = json.loads(response.choices[0].message.content)
+        raw_content = response.choices[0].message.content
+        print(f"[quality] {filename}: raw response: {raw_content[:300]}")
+        raw = json.loads(raw_content)
         findings_data = raw.get("findings", [])
-    except Exception:
+        print(f"[quality] {filename}: {len(findings_data)} findings")
+    except Exception as e:
+        print(f"[quality] {filename}: ERROR — {e}")
         return []
 
     return [

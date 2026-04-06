@@ -78,8 +78,11 @@ async def run_security_agent(
             response_format={"type": "json_object"},
             temperature=0,
         )
-        raw = json.loads(response.choices[0].message.content)
+        raw_content = response.choices[0].message.content
+        print(f"[security] {filename}: raw response: {raw_content[:300]}")
+        raw = json.loads(raw_content)
         findings_data = raw.get("findings", [])
+        print(f"[security] {filename}: {len(findings_data)} findings")
         llm_findings = [
             Finding(
                 filename=d.get("filename", filename),
@@ -93,8 +96,8 @@ async def run_security_agent(
             for d in findings_data
             if isinstance(d, dict)
         ]
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[security] {filename}: ERROR — {e}")
 
     dep_files = {"requirements.txt", "pyproject.toml"} | {f for f in [filename] if f.endswith(".csproj")}
     dep_findings = []
